@@ -2,9 +2,10 @@ import pytest
 import os
 
 from django.conf import settings
+from django.test import TestCase
 
-from core.tests.base_test_case import UserTestCase
-from core.tests.util import make_dirs  # noqa
+from core.tests.utils.cases import UserTestCase
+from core.tests.utils.files import make_dirs  # noqa
 from .factories import ResourceFactory
 from .utils import clear_temp  # noqa
 from ..models import ContentObject, Resource, create_thumbnails
@@ -15,7 +16,7 @@ path = os.path.dirname(settings.BASE_DIR)
 
 @pytest.mark.usefixtures('make_dirs')
 @pytest.mark.usefixtures('clear_temp')
-class ResourceTest(UserTestCase):
+class ResourceTest(UserTestCase, TestCase):
     def test_file_name_property(self):
         resource = Resource(file='http://example.com/dir/filename.txt')
         assert resource.file_name == 'filename.txt'

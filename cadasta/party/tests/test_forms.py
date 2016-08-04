@@ -1,13 +1,14 @@
 from django.contrib.contenttypes.models import ContentType
+from django.test import TestCase
 from jsonattrs.models import Attribute, AttributeType, Schema
 
-from core.tests.base_test_case import UserTestCase
+from core.tests.utils.cases import UserTestCase
 from organization.tests.factories import ProjectFactory
 from ..models import Party, TenureRelationshipType
 from .. import forms
 
 
-class PartyFormTest(UserTestCase):
+class PartyFormTest(UserTestCase, TestCase):
     def test_create_party(self):
         data = {
             'name': 'Cadasta',

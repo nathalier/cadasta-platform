@@ -1,14 +1,15 @@
 """Party serializer test cases."""
 
 from rest_framework.test import APIRequestFactory
+from django.test import TestCase
 
-from core.tests.base_test_case import UserTestCase
+from core.tests.utils.cases import UserTestCase
 from accounts.tests.factories import UserFactory
 from organization.tests.factories import ProjectFactory
 from party import serializers
 
 
-class PartySerializerTest(UserTestCase):
+class PartySerializerTest(UserTestCase, TestCase):
     def test_create_party(self,):
         request = APIRequestFactory().post('/')
         user = UserFactory.create()
