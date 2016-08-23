@@ -46,6 +46,9 @@ class ProjectMixin:
             )
         return self.prj
 
+    def get_organization(self):
+        return self.get_project().organization
+
 
 class ProjectRoles(ProjectMixin):
     lookup_field = 'username'

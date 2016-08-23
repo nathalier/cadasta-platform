@@ -77,6 +77,7 @@ class RecordListBaseTestCase(RecordBaseTestCase):
             request, organization=org_slug, project=prj_slug).render()
         content = json.loads(response.content.decode('utf-8'))
         if status is not None:
+            print(response.status_code, status)
             assert response.status_code == status
         if status == status_code.HTTP_200_OK:
             assert length is not None
@@ -174,6 +175,7 @@ class RecordCreateBaseTestCase(RecordBaseTestCase):
         response = self.view(
             request, organization=org_slug, project=prj_slug).render()
         content = json.loads(response.content.decode('utf-8'))
+        print(response.status_code, status)
         assert response.status_code == status
         assert self.record_model.objects.count() == (
             self.num_records +
@@ -276,6 +278,7 @@ class RecordDetailBaseTestCase(RecordBaseTestCase):
             request, organization=org_slug, project=prj_slug, **kwargs
         ).render()
         content = json.loads(response.content.decode('utf-8'))
+        print(response.status_code, status)
         assert response.status_code == status
         return content
 
@@ -288,6 +291,7 @@ class RecordDetailBaseTestCase(RecordBaseTestCase):
             request, organization=org_slug, project=prj_slug, **kwargs
         ).render()
         content = json.loads(response.content.decode('utf-8'))
+        print(response.status_code, status)
         assert response.status_code == status
         record.refresh_from_db()
         return content
@@ -300,6 +304,7 @@ class RecordDetailBaseTestCase(RecordBaseTestCase):
         response = self.view(
             request, organization=org_slug, project=prj_slug, **kwargs
         ).render()
+        print(response.status_code, status)
         assert response.status_code == status
         if response.content:
             content = json.loads(response.content.decode('utf-8'))
@@ -449,6 +454,7 @@ class RecordUpdateAPITest:
         if prj_slug is None:
             prj_slug = existing_record.project.slug
 
+        print(org_slug, prj_slug)
         # Perform request
         content = self._patch(
             org_slug=org_slug, prj_slug=prj_slug, record=record, user=user,

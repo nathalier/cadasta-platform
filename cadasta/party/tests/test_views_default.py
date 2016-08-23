@@ -148,6 +148,15 @@ class PartiesAddTest(TestCase):
         assert response.status_code == 302
         assert '/account/login/' in response['location']
 
+    def test_get_with_archived_project(self):
+        self.project.archived = True
+        self.project.save()
+        self.project.refresh_from_db()
+        response = self.request(user=self.authorized_user)
+        assert response.status_code == 302
+        assert ("You don't have permission to add parties to this project."
+                in [str(m) for m in get_messages(self.request)])
+
     def test_post_with_authorized_user(self):
         response = self.request(method='POST', user=self.authorized_user)
         assert Party.objects.count() == 1
@@ -167,6 +176,16 @@ class PartiesAddTest(TestCase):
         assert Party.objects.count() == 0
         assert response.status_code == 302
         assert '/account/login/' in response['location']
+
+    def test_post_with_archived_project(self):
+        self.project.archived = True
+        self.project.save()
+        self.project.refresh_from_db()
+        response = self.request(method='POST', user=self.authorized_user)
+        assert Party.objects.count() == 0
+        assert response.status_code == 302
+        assert ("You don't have permission to add parties to this project."
+                in [str(m) for m in get_messages(self.request)])
 
 
 class PartyDetailTest(TestCase):
@@ -309,6 +328,15 @@ class PartiesEditTest(TestCase):
             self.request(user=self.authorized_user,
                          url_kwargs={'party': 'abc123'})
 
+    def test_get_archived_project(self):
+        self.project.archived = True
+        self.project.save()
+        self.project.refresh_from_db()
+        response = self.request(user=self.authorized_user)
+        assert response.status_code == 302
+        assert ("You don't have permission to update this party."
+                in [str(m) for m in get_messages(self.request)])
+
     def test_post_with_authorized_user(self):
         response = self.request(method='POST', user=self.authorized_user)
         assert response.status_code == 302
@@ -333,6 +361,18 @@ class PartiesEditTest(TestCase):
         response = self.request(method='POST')
         assert response.status_code == 302
         assert '/account/login/' in response['location']
+
+        self.party.refresh_from_db()
+        assert self.party.name != self.post_data['name']
+        assert self.party.type != self.post_data['type']
+
+    def test_post_with_archived_project(self):
+        self.project.archived = True
+        self.project.save()
+        self.project.refresh_from_db()
+        response = self.request(method='POST', user=self.authorized_user)
+        assert response.status_code == 302
+        assert response['location'] != self.expected_success_url
 
         self.party.refresh_from_db()
         assert self.party.name != self.post_data['name']
@@ -396,6 +436,15 @@ class PartiesDeleteTest(TestCase):
             self.request(user=self.authorized_user,
                          url_kwargs={'party': 'abc123'})
 
+    def test_get_with_archived_project(self):
+        self.project.archived = True
+        self.project.save()
+        self.project.refresh_from_db()
+        response = self.request(user=self.authorized_user)
+        assert response.status_code == 302
+        assert ("You don't have permission to remove this party."
+                in [str(m) for m in get_messages(self.request)])
+
     def test_post_with_authorized_user(self):
         response = self.request(method='POST', user=self.authorized_user)
         assert response.status_code == 302
@@ -420,6 +469,15 @@ class PartiesDeleteTest(TestCase):
 
         assert Party.objects.count() == 1
         assert TenureRelationship.objects.count() == 1
+
+    def test_post_with_archived_project(self):
+        self.project.archived = True
+        self.project.save()
+        self.project.refresh_from_db()
+        response = self.request(method='POST', user=self.authorized_user)
+        assert response.status_code == 302
+        assert ("You don't have permission to remove this party."
+                in [str(m) for m in get_messages(self.request)])
 
 
 @pytest.mark.usefixtures('make_dirs')
@@ -487,6 +545,15 @@ class PartyResourcesAddTest(TestCase):
         assert response.status_code == 302
         assert '/account/login/' in response['location']
 
+    def test_get_with_archived_project(self):
+        self.project.archived = True
+        self.project.save()
+        self.project.refresh_from_db()
+        response = self.request(user=self.authorized_user)
+        assert response.status_code == 302
+        assert ("You don't have permission to add resources to this party"
+                in [str(m) for m in get_messages(self.request)])
+
     def test_post_with_authorized_user(self):
         response = self.request(method='POST', user=self.authorized_user)
         assert response.status_code == 302
@@ -513,6 +580,15 @@ class PartyResourcesAddTest(TestCase):
 
         assert self.party.resources.count() == 1
         assert self.party.resources.first() == self.attached
+
+    def test_post_with_archived_project(self):
+        self.project.archived = True
+        self.project.save()
+        self.project.refresh_from_db()
+        response = self.request(method='POST', user=self.authorized_user)
+        assert response.status_code == 302
+        assert ("You don't have permission to add resources to this party"
+                in [str(m) for m in get_messages(self.request)])
 
 
 @pytest.mark.usefixtures('make_dirs')
@@ -586,6 +662,15 @@ class PartyResourcesNewTest(TestCase):
         assert response.status_code == 302
         assert '/account/login/' in response['location']
 
+    def test_get_with_archived_project(self):
+        self.project.archived = True
+        self.project.save()
+        self.project.refresh_from_db()
+        response = self.request(user=self.authorized_user)
+        assert response.status_code == 302
+        assert ("You don't have permission to add resources to this party"
+                in [str(m) for m in get_messages(self.request)])
+
     def test_post_with_authorized_user(self):
         response = self.request(method='POST', user=self.authorized_user)
         assert response.status_code == 302
@@ -605,6 +690,17 @@ class PartyResourcesNewTest(TestCase):
         response = self.request(method='POST')
         assert response.status_code == 302
         assert '/account/login/' in response['location']
+
+        assert self.party.resources.count() == 0
+
+    def test_post_with_archived_project(self):
+        self.project.archived = True
+        self.project.save()
+        self.project.refresh_from_db()
+        response = self.request(method='POST', user=self.authorized_user)
+        assert response.status_code == 302
+        assert ("You don't have permission to add resources to this party"
+                in [str(m) for m in get_messages(self.request)])
 
         assert self.party.resources.count() == 0
 
@@ -744,6 +840,15 @@ class PartyRelationshipEditTest(TestCase):
         assert response.status_code == 302
         assert '/account/login/' in response['location']
 
+    def test_get_with_archived_project(self):
+        self.project.archived = True
+        self.project.save()
+        self.project.refresh_from_db()
+        response = self.request(user=self.authorized_user)
+        assert response.status_code == 302
+        assert ("You don't have permission to update this tenure relationship."
+                in [str(m) for m in get_messages(self.request)])
+
     def test_post_with_authorized_user(self):
         response = self.request(method='POST', user=self.authorized_user)
         assert response.status_code == 302
@@ -766,6 +871,18 @@ class PartyRelationshipEditTest(TestCase):
         response = self.request(method='POST')
         assert response.status_code == 302
         assert '/account/login/' in response['location']
+
+        self.relationship.refresh_from_db()
+        assert self.relationship.tenure_type_id != 'LH'
+
+    def test_post_with_archived_project(self):
+        self.project.archived = True
+        self.project.save()
+        self.project.refresh_from_db()
+        response = self.request(method='POST', user=self.authorized_user)
+        assert response.status_code == 302
+        assert ("You don't have permission to update this tenure relationship."
+                in [str(m) for m in get_messages(self.request)])
 
         self.relationship.refresh_from_db()
         assert self.relationship.tenure_type_id != 'LH'
@@ -830,6 +947,15 @@ class PartyRelationshipDeleteTest(TestCase):
         assert response.status_code == 302
         assert '/account/login/' in response['location']
 
+    def test_get_with_archived_project(self):
+        self.project.archived = True
+        self.project.save()
+        self.project.refresh_from_db()
+        response = self.request(user=self.authorized_user)
+        assert response.status_code == 302
+        assert ("You don't have permission to remove this tenure relationship."
+                in [str(m) for m in get_messages(self.request)])
+
     def test_post_with_authorized_user(self):
         response = self.request(method='POST', user=self.authorized_user)
         assert response.status_code == 302
@@ -853,6 +979,17 @@ class PartyRelationshipDeleteTest(TestCase):
         assert '/account/login/' in response['location']
 
         self.relationship.refresh_from_db()
+        assert TenureRelationship.objects.count() == 1
+
+    def test_post_with_archived_project(self):
+        self.project.archived = True
+        self.project.save()
+        self.project.refresh_from_db()
+        response = self.request(method='POST', user=self.unauthorized_user)
+        assert response.status_code == 302
+        assert ("You don't have permission to remove this tenure relationship."
+                in [str(m) for m in get_messages(self.request)])
+
         assert TenureRelationship.objects.count() == 1
 
 
@@ -925,6 +1062,16 @@ class PartyRelationshipResourceAddTest(TestCase):
         assert response.status_code == 302
         assert '/account/login/' in response['location']
 
+    def test_get_with_archived_project(self):
+        self.project.archived = True
+        self.project.save()
+        self.project.refresh_from_db()
+        response = self.request(user=self.authorized_user)
+        assert response.status_code == 302
+        assert ("You don't have permission to add resources to this tenure "
+                "relationship."
+                in [str(m) for m in get_messages(self.request)])
+
     def test_post_with_authorized_user(self):
         response = self.request(method='POST', user=self.authorized_user)
         assert response.status_code == 302
@@ -949,6 +1096,19 @@ class PartyRelationshipResourceAddTest(TestCase):
         response = self.request(method='POST')
         assert response.status_code == 302
         assert '/account/login/' in response['location']
+
+        assert self.relationship.resources.count() == 1
+        assert self.relationship.resources.first() == self.attached
+
+    def test_post_with_archived_project(self):
+        self.project.archived = True
+        self.project.save()
+        self.project.refresh_from_db()
+        response = self.request(method='POST', user=self.authorized_user)
+        assert response.status_code == 302
+        assert ("You don't have permission to add resources to this tenure "
+                "relationship."
+                in [str(m) for m in get_messages(self.request)])
 
         assert self.relationship.resources.count() == 1
         assert self.relationship.resources.first() == self.attached
@@ -1028,6 +1188,16 @@ class PartyRelationshipResourceNewTest(TestCase):
         assert response.status_code == 302
         assert '/account/login/' in response['location']
 
+    def test_get_with_archived_project(self):
+        self.project.archived = True
+        self.project.save()
+        self.project.refresh_from_db()
+        response = self.request(user=self.authorized_user)
+        assert response.status_code == 302
+        assert ("You don't have permission to add resources to this tenure "
+                "relationship."
+                in [str(m) for m in get_messages(self.request)])
+
     def test_post_with_authorized_user(self):
         response = self.request(method='POST', user=self.authorized_user)
         assert response.status_code == 302
@@ -1050,3 +1220,13 @@ class PartyRelationshipResourceNewTest(TestCase):
         assert '/account/login/' in response['location']
 
         assert self.relationship.resources.count() == 0
+
+    def test_post_with_archived_project(self):
+        self.project.archived = True
+        self.project.save()
+        self.project.refresh_from_db()
+        response = self.request(method='POST', user=self.authorized_user)
+        assert response.status_code == 302
+        assert ("You don't have permission to add resources to this tenure "
+                "relationship."
+                in [str(m) for m in get_messages(self.request)])

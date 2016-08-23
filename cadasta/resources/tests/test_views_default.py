@@ -261,6 +261,14 @@ class ProjectResourcesAddTest(UserTestCase):
             self.view(self.request,
                       organization='some-org', project='some-project')
 
+    def test_get_with_archived_project(self):
+        self.project.archived = True
+        self.project.save()
+        self.project.refresh_from_db()
+        self._get(status=302)
+        assert ("You don't have permission to add resources."
+                in [str(m) for m in get_messages(self.request)])
+
     def test_update(self):
         redirect_url = reverse(
             'resources:project_list',
@@ -293,6 +301,16 @@ class ProjectResourcesAddTest(UserTestCase):
     def test_post_with_unauthenticated_user(self):
         self._post(status=302, user=AnonymousUser(),
                    expected_redirect='/account/login/')
+        assert self.project.resources.count() == 1
+        assert self.project.resources.first() == self.attached
+
+    def test_post_with_archived_project(self):
+        self.project.archived = True
+        self.project.save()
+        self.project.refresh_from_db()
+        self._post(status=302)
+        assert ("You don't have permission to add resources."
+                in [str(m) for m in get_messages(self.request)])
         assert self.project.resources.count() == 1
         assert self.project.resources.first() == self.attached
 
@@ -392,6 +410,14 @@ class ProjectResourcesNewTest(UserTestCase):
         response = self._get(status=302, user=AnonymousUser())
         assert '/account/login/' in response['location']
 
+    def test_get_with_archived_project(self):
+        self.project.archived = True
+        self.project.save()
+        self.project.refresh_from_db()
+        self._get(status=302)
+        assert ("You don't have permission to add resources."
+                in [str(m) for m in get_messages(self.request)])
+
     def test_create(self):
         redirect_url = reverse(
             'resources:project_list',
@@ -421,6 +447,14 @@ class ProjectResourcesNewTest(UserTestCase):
                    user=AnonymousUser(),
                    expected_redirect='/account/login/')
         assert self.project.resources.count() == 0
+
+    def test_post_with_archived_project(self):
+        self.project.archived = True
+        self.project.save()
+        self.project.refresh_from_db()
+        self._post(status=302)
+        assert ("You don't have permission to add resources."
+                in [str(m) for m in get_messages(self.request)])
 
 
 @pytest.mark.usefixtures('make_dirs')
@@ -664,6 +698,14 @@ class ProjectResourcesEditTest(UserTestCase):
         response = self._get(status=302, user=AnonymousUser())
         assert '/account/login/' in response['location']
 
+    def test_get_with_archived_project(self):
+        self.project.archived = True
+        self.project.save()
+        self.project.refresh_from_db()
+        self._get(status=302)
+        assert ("You don't have permission to edit this resource."
+                in [str(m) for m in get_messages(self.request)])
+
     def test_update(self):
         redirect_url = reverse(
             'resources:project_detail',
@@ -694,6 +736,16 @@ class ProjectResourcesEditTest(UserTestCase):
     def test_post_with_unauthenticated_user(self):
         response = self._post(status=302, user=AnonymousUser())
         assert '/account/login/' in response['location']
+        assert self.project.resources.count() == 1
+        assert self.project.resources.first().name != self.data['name']
+
+    def test_post_with_archived_project(self):
+        self.project.archived = True
+        self.project.save()
+        self.project.refresh_from_db()
+        self._post(status=302)
+        assert ("You don't have permission to edit this resource."
+                in [str(m) for m in get_messages(self.request)])
         assert self.project.resources.count() == 1
         assert self.project.resources.first().name != self.data['name']
 

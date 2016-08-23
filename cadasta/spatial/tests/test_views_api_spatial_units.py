@@ -27,10 +27,11 @@ class SpatialUnitListTestCase(RecordListBaseTestCase,
         self.view = api.SpatialUnitList.as_view()
         self.url = '/v1/organizations/{org}/projects/{prj}/spatial/'
 
-    def _test_objs(self, access='public'):
+    def _test_objs(self, access='public', archived=False):
         org = OrganizationFactory.create(slug='namati')
         prj = ProjectFactory.create(
-            slug='test-project', organization=org, access=access)
+            slug='test-project', organization=org, access=access,
+            archived=archived)
         SpatialUnitFactory.create(project=prj, type='AP')
         SpatialUnitFactory.create(project=prj, type='BU')
         SpatialUnitFactory.create(
@@ -96,19 +97,34 @@ class SpatialUnitListAPITest(SpatialUnitListTestCase,
             record['properties']['type'] == 'RW' for
             record in content['features'])
 
+    def test_archived_filter_with_unauthorized_user(self):
+        org, prj = self._test_objs(archived=True)
+        self._get(
+            org_slug=org.slug, prj_slug=prj.slug, user=self.restricted_user,
+            status=status_code.HTTP_403_FORBIDDEN)
+
+    def test_archived_filter_with_org_admin(self):
+        org, prj = self._test_objs(archived=True)
+        extra_record = SpatialUnitFactory.create()
+        content = self._get(
+            org_slug=org.slug, prj_slug=prj.slug,
+            status=status_code.HTTP_200_OK, length=self.num_records)
+        assert extra_record.id not in (
+            [u['properties']['id'] for u in content['features']])
+
 
 class SpatialUnitCreateAPITest(SpatialUnitListTestCase,
                                RecordCreateAPITest):
 
     default_create_data = {
-        'properties': {
-            'type': "AP"
-        },
-        'geometry': {
-            'type': 'Point',
-            'coordinates': [100, 0]
+            'properties': {
+                'type': "AP"
+            },
+            'geometry': {
+                'type': 'Point',
+                'coordinates': [100, 0]
+            }
         }
-    }
 
     # Additional tests
 
@@ -141,6 +157,16 @@ class SpatialUnitCreateAPITest(SpatialUnitListTestCase,
         assert content['geometry'][0] == _(
             "Invalid format: string or unicode input"
             " unrecognized as GeoJSON, WKT EWKT or HEXEWKB.")
+
+    def test_create_archived_project(self):
+        org, prj = self._test_objs()
+        prj.archived = True
+        prj.save()
+        prj.refresh_from_db()
+        self._post(
+            org_slug=org.slug, prj_slug=prj.slug,
+            data=self.default_create_data,
+            status=status_code.HTTP_403_FORBIDDEN)
 
 
 class SpatialUnitDetailTestCase(RecordDetailBaseTestCase):
@@ -208,6 +234,16 @@ class SpatialUnitUpdateAPITest(SpatialUnitDetailTestCase,
         assert content['geometry'][0] == _(
             "Invalid format: string or unicode input"
             " unrecognized as GeoJSON, WKT EWKT or HEXEWKB.")
+
+    def test_update_with_archived_project(self):
+        su, org = self._test_objs()
+        su.project.archived = True
+        su.project.save()
+        su.project.refresh_from_db()
+
+        self._test_patch_public_record(
+            self.get_valid_updated_data, status_code.HTTP_403_FORBIDDEN,
+            org_slug=org.slug, prj_slug=su.project.slug, record=su)
 
 
 class SpatialUnitDeleteAPITest(SpatialUnitDetailTestCase,

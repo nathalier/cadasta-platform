@@ -88,6 +88,16 @@ class PartyRelationshipCreateAPITest(PartyRelationshipCreateTestCase,
         assert content['non_field_errors'][0] == (
             err_msg.format(prj.slug, other_prj.slug))
 
+    def test_create_valid_record_with_archived_project(self):
+        org, prj = self._test_objs()
+        prj.archived = True
+        prj.save()
+        prj.refresh_from_db()
+        self._post(
+            org_slug=org.slug, prj_slug=prj.slug,
+            data=self.default_create_data,
+            status=status_code.HTTP_403_FORBIDDEN)
+
 
 class PartyRelationshipDetailTestCase(RecordDetailBaseTestCase):
 
@@ -169,6 +179,16 @@ class PartyRelationshipUpdateAPITest(PartyRelationshipDetailTestCase,
             "'party1' project ({}) should be equal to 'party2' project ({})")
         assert content['non_field_errors'][0] == (
             err_msg.format(self.party1.project.slug, other_prj.slug))
+
+    def test_update_valid_record_with_archived_project(self):
+        rel, org = self._test_objs()
+        rel.project.archived = True
+        rel.project.save()
+        rel.project.refresh_from_db()
+
+        self._test_patch_public_record(
+            self.get_valid_updated_data, status_code.HTTP_403_FORBIDDEN,
+            org_slug=org.slug, prj_slug=rel.project.slug, record=rel)
 
 
 class PartyRelationshipDeleteAPITest(PartyRelationshipDetailTestCase,

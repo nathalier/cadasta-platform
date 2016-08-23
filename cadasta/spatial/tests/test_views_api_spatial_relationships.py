@@ -90,6 +90,16 @@ class SpatialRelationshipCreateAPITest(SpatialRelationshipCreateTestCase,
         assert content['non_field_errors'][0] == (
             err_msg.format(prj.slug, other_prj.slug))
 
+    def test_create_valid_record_with_archived_project(self):
+        org, prj = self._test_objs()
+        prj.archived = True
+        prj.save()
+        prj.refresh_from_db()
+        self._post(
+            org_slug=org.slug, prj_slug=prj.slug,
+            data=self.default_create_data,
+            status=status_code.HTTP_403_FORBIDDEN)
+
 
 class SpatialRelationshipDetailTestCase(RecordDetailBaseTestCase):
 
@@ -170,6 +180,16 @@ class SpatialRelationshipUpdateAPITest(SpatialRelationshipDetailTestCase,
         err_msg = _("'su1' project ({}) should be equal to 'su2' project ({})")
         assert content['non_field_errors'][0] == (
             err_msg.format(self.su1.project.slug, other_prj.slug))
+
+    def test_update_valid_record_with_archived_project(self):
+        su, org = self._test_objs()
+        su.project.archived = True
+        su.project.save()
+        su.project.refresh_from_db()
+
+        self._test_patch_public_record(
+            self.get_valid_updated_data, status_code.HTTP_403_FORBIDDEN,
+            org_slug=org.slug, prj_slug=su.project.slug, record=su)
 
 
 class SpatialRelationshipDeleteAPITest(SpatialRelationshipDetailTestCase,
