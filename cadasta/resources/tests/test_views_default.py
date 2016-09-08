@@ -558,15 +558,6 @@ class ResourceArchiveTest(ViewTestCase, UserTestCase, TestCase):
         self.project = ProjectFactory.create()
         self.resource = ResourceFactory.create(content_object=self.project,
                                                project=self.project)
-
-        self.redirect_url = reverse(
-            'resources:project_detail',
-            kwargs={
-                'organization': self.project.organization.slug,
-                'project': self.project.slug,
-                'resource': self.resource.id,
-            }
-        )
         assign_permissions(self.user)
 
     def setup_url_kwargs(self):
@@ -606,7 +597,7 @@ class ResourceArchiveTest(ViewTestCase, UserTestCase, TestCase):
             name='allow',
             body=json.dumps(additional_clauses))
         assign_user_policies(self.user, policy)
-        redirect_url = reverse(
+        expected_success_url = reverse(
             'resources:project_list',
             kwargs={
                 'organization': self.project.organization.slug,
@@ -615,7 +606,7 @@ class ResourceArchiveTest(ViewTestCase, UserTestCase, TestCase):
         )
         response = self.request(user=self.user)
         assert response.status_code == 302
-        assert response.location == redirect_url
+        assert response.location == expected_success_url
 
         self.resource.refresh_from_db()
         assert self.resource.archived is True
@@ -708,171 +699,142 @@ class ResourceUnArchiveTest(ViewTestCase, UserTestCase, TestCase):
         assert self.resource.archived is True
 
 
-# TODO
-# @pytest.mark.usefixtures('make_dirs')
-# class ResourceDetachTest(UserTestCase):
-#     def setUp(self):
-#         super().setUp()
+@pytest.mark.usefixtures('make_dirs')
+class ResourceDetachTest(ViewTestCase, UserTestCase, TestCase):
+    view_class = default.ResourceDetach
+    success_url_name = 'resources:project_list'
 
-#         self.project = ProjectFactory.create()
-#         self.location = SpatialUnitFactory.create(project=self.project)
-#         self.resource = ResourceFactory.create(project=self.project)
-#         self.project_attachment = ContentObject.objects.create(
-#             resource_id=self.resource.id,
-#             content_object=self.project,
-#         )
-#         self.location_attachment = ContentObject.objects.create(
-#             resource_id=self.resource.id,
-#             content_object=self.location,
-#         )
+    def setup_models(self):
+        self.project = ProjectFactory.create()
+        self.location = SpatialUnitFactory.create(project=self.project)
+        self.resource = ResourceFactory.create(project=self.project)
+        self.project_attachment = ContentObject.objects.create(
+            resource_id=self.resource.id,
+            content_object=self.project,
+        )
+        self.location_attachment = ContentObject.objects.create(
+            resource_id=self.resource.id,
+            content_object=self.location,
+        )
 
-#         self.user = UserFactory.create()
-#         self.policy = Policy.objects.create(
-#             name='allow',
-#             body=json.dumps(clauses))
-#         assign_user_policies(self.user, self.policy)
+        self.user = UserFactory.create()
+        assign_permissions(self.user)
 
-#         self.view = default.ResourceDetach.as_view()
-#         self.request = HttpRequest()
-#         setattr(self.request, 'method', 'POST')
-#         setattr(self.request, 'session', 'session')
-#         self.messages = FallbackStorage(self.request)
-#         setattr(self.request, '_messages', self.messages)
-#         self.redirect_url = reverse(
-#             'resources:project_list',
-#             kwargs={
-#                 'organization': self.project.organization.slug,
-#                 'project': self.project.slug
-#             }
-#         )
+    def setup_post_data(self):
+        storage = FakeS3Storage()
+        file = open(path + '/resources/tests/files/image.jpg', 'rb').read()
+        file_name = storage.save('resources/image.jpg', file)
 
-#     def _post(self, attachment_id, user=None):
-#         storage = FakeS3Storage()
-#         file = open(path + '/resources/tests/files/image.jpg', 'rb').read()
-#         file_name = storage.save('resources/image.jpg', file)
-#         self.data = {
-#             'name': 'Some name',
-#             'description': '',
-#             'file': file_name,
-#             'original_file': 'image.png',
-#             'mime_type': 'image/jpeg'
-#         }
+        return {
+            'name': 'Some name',
+            'description': '',
+            'file': file_name,
+            'original_file': 'image.png',
+            'mime_type': 'image/jpeg'
+        }
 
-#         if user is None:
-#             user = self.user
-#         setattr(self.request, 'user', user)
+    def setup_url_kwargs(self):
+        return {
+            'organization': self.project.organization.slug,
+            'project': self.project.slug,
+            'resource': self.resource.id,
+            'attachment': self.project_attachment.id
+        }
 
-#         response = self.view(
-#             self.request,
-#             organization=self.project.organization.slug,
-#             project=self.project.slug,
-#             resource=self.resource.id,
-#             attachment=attachment_id,
-#         )
-#         return response
+    def setup_success_url_kwargs(self):
+        return {
+            'organization': self.project.organization.slug,
+            'project': self.project.slug
+        }
 
-#     def refresh_objects_from_db(self):
-#         self.resource.refresh_from_db()
-#         self.project.refresh_from_db()
-#         self.project.reload_resources()
-#         self.location.refresh_from_db()
-#         self.location.reload_resources()
+    def refresh_objects_from_db(self):
+        self.resource.refresh_from_db()
+        self.project.refresh_from_db()
+        self.project.reload_resources()
+        self.location.refresh_from_db()
+        self.location.reload_resources()
 
-#     def test_detach_from_project(self):
-#         response = self._post(self.project_attachment.id)
-#         assert response.status_code == 302
-#         assert self.redirect_url in response['location']
-#         self.refresh_objects_from_db()
-#         assert self.resource.num_entities == 1
-#         assert self.project.resources.count() == 0
-#         location_resources = self.location.resources
-#         assert location_resources.count() == 1
-#         assert location_resources.first() == self.resource
+    def test_detach_from_project(self):
+        response = self.request(method='POST', user=self.user)
+        assert response.status_code == 302
+        assert self.expected_success_url in response.location
+        self.refresh_objects_from_db()
+        assert self.resource.num_entities == 1
+        assert self.project.resources.count() == 0
+        location_resources = self.location.resources
+        assert location_resources.count() == 1
+        assert location_resources.first() == self.resource
 
-#     def test_detach_from_location(self):
-#         response = self._post(self.location_attachment.id)
-#         assert response.status_code == 302
-#         assert self.redirect_url in response['location']
-#         self.refresh_objects_from_db()
-#         assert self.resource.num_entities == 1
-#         assert self.location.resources.count() == 0
-#         project_resources = self.project.resources
-#         assert project_resources.count() == 1
-#         assert project_resources.first() == self.resource
+    def test_detach_from_location(self):
+        response = self.request(
+            method='POST',
+            user=self.user,
+            url_kwargs={'attachment': self.location_attachment.id})
+        assert response.status_code == 302
+        assert self.expected_success_url in response.location
+        self.refresh_objects_from_db()
+        assert self.resource.num_entities == 1
+        assert self.location.resources.count() == 0
+        project_resources = self.project.resources
+        assert project_resources.count() == 1
+        assert project_resources.first() == self.resource
 
-#     def test_detach_with_custom_redirect(self):
-#         setattr(self.request, 'GET', {'next': '/dashboard/'})
-#         response = self._post(self.project_attachment.id)
-#         assert response.status_code == 302
-#         assert '/dashboard/#resources' in response['location']
-#         self.refresh_objects_from_db()
-#         assert self.resource.num_entities == 1
-#         assert self.project.resources.count() == 0
-#         location_resources = self.location.resources
-#         assert location_resources.count() == 1
-#         assert location_resources.first() == self.resource
+    def test_detach_with_custom_redirect(self):
+        response = self.request(method='POST', user=self.user,
+                                get_data={'next': '/dashboard/'})
+        assert response.status_code == 302
+        assert '/dashboard/#resources' in response.location
+        self.refresh_objects_from_db()
+        assert self.resource.num_entities == 1
+        assert self.project.resources.count() == 0
+        location_resources = self.location.resources
+        assert location_resources.count() == 1
+        assert location_resources.first() == self.resource
 
-#     def test_detach_with_nonexistent_project(self):
-#         setattr(self.request, 'user', self.user)
-#         with pytest.raises(Http404):
-#             self.view(
-#                 self.request,
-#                 organization='some-org',
-#                 project='some-project',
-#                 resource=self.resource.id,
-#                 attachment=self.project_attachment.id,
-#             )
-#         self.refresh_objects_from_db()
-#         assert self.resource.num_entities == 2
-#         assert self.project.resources.count() == 1
-#         assert self.location.resources.count() == 1
+    def test_detach_with_nonexistent_project(self):
+        with pytest.raises(Http404):
+            self.request(method='POST', user=self.user,
+                         url_kwargs={'organization': 'some-org',
+                                     'project': 'some-project'})
 
-#     def test_detach_with_nonexistent_resource(self):
-#         setattr(self.request, 'user', self.user)
-#         with pytest.raises(Http404):
-#             self.view(
-#                 self.request,
-#                 organization=self.project.organization.slug,
-#                 project=self.project.slug,
-#                 resource='abc123',
-#                 attachment=self.project_attachment.id,
-#             )
-#         self.refresh_objects_from_db()
-#         assert self.resource.num_entities == 2
-#         assert self.project.resources.count() == 1
-#         assert self.location.resources.count() == 1
+        self.refresh_objects_from_db()
+        assert self.resource.num_entities == 2
+        assert self.project.resources.count() == 1
+        assert self.location.resources.count() == 1
 
-#     def test_detach_with_nonexistent_attachment(self):
-#         setattr(self.request, 'user', self.user)
-#         with pytest.raises(Http404):
-#             self.view(
-#                 self.request,
-#                 organization=self.project.organization.slug,
-#                 project=self.project.slug,
-#                 resource=self.resource.id,
-#                 attachment='abc123',
-#             )
-#         self.refresh_objects_from_db()
-#         assert self.resource.num_entities == 2
-#         assert self.project.resources.count() == 1
-#         assert self.location.resources.count() == 1
+    def test_detach_with_nonexistent_resource(self):
+        with pytest.raises(Http404):
+            self.request(method='POST', user=self.user,
+                         url_kwargs={'resource': 'abc123'})
+        self.refresh_objects_from_db()
+        assert self.resource.num_entities == 2
+        assert self.project.resources.count() == 1
+        assert self.location.resources.count() == 1
 
-#     def test_detach_with_unauthorized_user(self):
-#         response = self._post(self.project_attachment.id,
-#                               user=UserFactory.create())
-#         assert ("You don't have permission to edit this resource."
-#                 in [str(m) for m in get_messages(self.request)])
-#         assert response.status_code == 302
-#         self.refresh_objects_from_db()
-#         assert self.resource.num_entities == 2
-#         assert self.project.resources.count() == 1
-#         assert self.location.resources.count() == 1
+    def test_detach_with_nonexistent_attachment(self):
+        with pytest.raises(Http404):
+            self.request(method='POST', user=self.user,
+                         url_kwargs={'attachment': 'abc123'})
+        self.refresh_objects_from_db()
+        assert self.resource.num_entities == 2
+        assert self.project.resources.count() == 1
+        assert self.location.resources.count() == 1
 
-#     def test_detach_with_unauthenticated_user(self):
-#         response = self._post(self.project_attachment.id, user=AnonymousUser())
-#         assert response.status_code == 302
-#         assert '/account/login/' in response['location']
-#         self.refresh_objects_from_db()
-#         assert self.resource.num_entities == 2
-#         assert self.project.resources.count() == 1
-#         assert self.location.resources.count() == 1
+    def test_detach_with_unauthorized_user(self):
+        response = self.request(method='POST', user=UserFactory.create())
+        assert ("You don't have permission to edit this resource."
+                in response.messages)
+        assert response.status_code == 302
+        self.refresh_objects_from_db()
+        assert self.resource.num_entities == 2
+        assert self.project.resources.count() == 1
+        assert self.location.resources.count() == 1
+
+    def test_detach_with_unauthenticated_user(self):
+        response = self.request(method='POST')
+        assert response.status_code == 302
+        assert '/account/login/' in response.location
+        self.refresh_objects_from_db()
+        assert self.resource.num_entities == 2
+        assert self.project.resources.count() == 1
+        assert self.location.resources.count() == 1
